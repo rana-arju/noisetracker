@@ -16,7 +16,7 @@ import {
   FileSpreadsheet
 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { EmployeeUploadPreview, Employee } from "@/lib/types";
+import { BulkUploadPreviewResponse } from "@/lib/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -33,11 +33,13 @@ import { cn } from "@/lib/utils";
 
 export default function EmployeeUploadPage() {
   const router = useRouter();
-  const { uploadEmployees } = useApp();
+  const { previewUploadEmployees, confirmUploadEmployees } = useApp();
   
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [step, setStep] = useState<"upload" | "success">("upload");
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [step, setStep] = useState<"upload" | "preview" | "success">("upload");
+  const [previewData, setPreviewData] = useState<BulkUploadPreviewResponse | null>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -67,13 +69,36 @@ export default function EmployeeUploadPage() {
     
     setIsUploading(true);
     try {
-      await uploadEmployees(file);
+      const data = await previewUploadEmployees(file);
+      setPreviewData(data);
       setIsUploading(false);
-      setStep("success");
-      toast.success("কর্মচারীদের তথ্য সফলভাবে আমদানি করা হয়েছে");
+      setStep("preview");
+      toast.success("প্রিভিউ সফলভাবে সম্পন্ন হয়েছে");
     } catch (err: any) {
       setIsUploading(false);
       const errorMsg = err.response?.data?.message || "আপলোড করতে সমস্যা হয়েছে";
+      toast.error(errorMsg);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!previewData?.previewData) return;
+    
+    const validUsers = previewData.previewData.filter(u => u.status === "NEW");
+    if (validUsers.length === 0) {
+      toast.error("সিস্টেমে যুক্ত করার মতো কোনো নতুন কর্মচারী নেই");
+      return;
+    }
+
+    setIsConfirming(true);
+    try {
+      await confirmUploadEmployees(validUsers);
+      setIsConfirming(false);
+      setStep("success");
+      toast.success("কর্মচারীদের তথ্য সফলভাবে সিস্টেমে সংরক্ষণ করা হয়েছে");
+    } catch (err: any) {
+      setIsConfirming(false);
+      const errorMsg = err.response?.data?.message || "সংরক্ষণ করতে সমস্যা হয়েছে";
       toast.error(errorMsg);
     }
   };
@@ -160,6 +185,100 @@ export default function EmployeeUploadPage() {
           </Card>
         )}
 
+        {step === "preview" && previewData && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+              <Card className="p-3 md:p-4 text-center">
+                <p className="text-xs md:text-sm text-muted-foreground mb-1">মোট কর্মচারী</p>
+                <p className="text-xl md:text-2xl font-bold">{previewData.summary.total}</p>
+              </Card>
+              <Card className="p-3 md:p-4 text-center border-l-4 border-l-green-500">
+                <p className="text-xs md:text-sm text-muted-foreground mb-1">নতুন</p>
+                <p className="text-xl md:text-2xl font-bold text-green-600">{previewData.summary.new}</p>
+              </Card>
+              <Card className="p-3 md:p-4 text-center border-l-4 border-l-orange-500">
+                <p className="text-xs md:text-sm text-muted-foreground mb-1">পূর্বের বিদ্যমান</p>
+                <p className="text-xl md:text-2xl font-bold text-orange-600">{previewData.summary.existing}</p>
+              </Card>
+              <Card className="p-3 md:p-4 text-center border-l-4 border-l-red-500">
+                <p className="text-xs md:text-sm text-muted-foreground mb-1">ত্রুটিপূর্ণ</p>
+                <p className="text-xl md:text-2xl font-bold text-red-600">{previewData.summary.invalid}</p>
+              </Card>
+            </div>
+
+            <Card className="bg-white dark:bg-slate-900 overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Employee ID</TableHead>
+                      <TableHead className="whitespace-nowrap">Name</TableHead>
+                      <TableHead className="whitespace-nowrap hidden md:table-cell">Designation</TableHead>
+                      <TableHead className="whitespace-nowrap">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {previewData.previewData.map((row, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-mono text-xs md:text-sm">{row.employeeId}</TableCell>
+                        <TableCell className="text-xs md:text-sm">{row.name}</TableCell>
+                        <TableCell className="text-xs md:text-sm hidden md:table-cell">{row.designation || "N/A"}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              row.status === "NEW" ? "default" : 
+                              row.status === "EXISTING" ? "secondary" : "destructive"
+                            }
+                            className={cn(
+                              "text-[10px] md:text-xs",
+                              row.status === "NEW" && "bg-green-100 text-green-700 hover:bg-green-100",
+                              row.status === "EXISTING" && "bg-orange-100 text-orange-700 hover:bg-orange-100"
+                            )}
+                          >
+                            {row.status === "NEW" ? "নতুন" : 
+                             row.status === "EXISTING" ? "বিদ্যমান" : "ত্রুটি"}
+                          </Badge>
+                          {row.message && (
+                            <span className="ml-2 text-[10px] text-muted-foreground hidden sm:inline">{row.message}</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </Card>
+
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-white dark:bg-slate-900 p-4 md:p-6 rounded-xl border gap-4">
+              <Button 
+                variant="ghost" 
+                onClick={() => setStep("upload")}
+                disabled={isConfirming}
+                className="w-full sm:w-auto order-2 sm:order-1"
+              >
+                ফাইল পরিবর্তন করুন
+              </Button>
+              <Button 
+                className="px-8 font-bold w-full sm:w-auto order-1 sm:order-2"
+                onClick={handleConfirm}
+                disabled={previewData.summary.new === 0 || isConfirming}
+              >
+                {isConfirming ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    সংরক্ষণ হচ্ছে...
+                  </>
+                ) : (
+                  <>
+                    সিস্টেমে যুক্ত করুন
+                    <CheckCircle2 className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {step === "success" && (
           <Card className="p-12 flex flex-col items-center justify-center text-center space-y-6 bg-white dark:bg-slate-900">
             <div className="h-20 w-20 rounded-full bg-green-100 text-green-600 flex items-center justify-center shadow-inner">
@@ -173,11 +292,16 @@ export default function EmployeeUploadPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 w-full max-w-sm pt-4">
-              <Link href="/admin/employees">
-                <Button variant="outline" className="w-full">তালিকায় যান</Button>
+            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm pt-4">
+              <Link href="/admin/employees" className="w-full">
+                <Button variant="outline" className="w-full py-6">তালিকায় যান</Button>
               </Link>
-              <Button onClick={() => { setFile(null); setStep("upload"); }} className="w-full">আরও আপলোড</Button>
+              <Button 
+                onClick={() => { setFile(null); setStep("upload"); }} 
+                className="w-full py-6"
+              >
+                আরও আপলোড
+              </Button>
             </div>
           </Card>
         )}

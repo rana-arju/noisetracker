@@ -31,6 +31,26 @@ export interface EmployeeUploadPreview extends Partial<Employee> {
   errors?: string[];
 }
 
+export interface BulkUploadPreviewResponse {
+  summary: {
+    total: number;
+    new: number;
+    existing: number;
+    invalid: number;
+  };
+  previewData: Array<{
+    SL?: string | number;
+    employeeId: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+    designation?: string;
+    status: "NEW" | "EXISTING" | "INVALID";
+    message?: string;
+  }>;
+}
+
 export interface Report {
   id: string;
   reportedEmployeeName: string;

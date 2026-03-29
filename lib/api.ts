@@ -2,7 +2,8 @@
 
 import axios from "axios";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -31,7 +32,7 @@ apiClient.interceptors.response.use(
       window.location.href = "/auth/login";
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // ─── Auth ──────────────────────────────────────────────────────────────────
@@ -95,24 +96,32 @@ export const adminEmployeesAPI = {
 
   getById: (id: string) => apiClient.get(`/admin/employees/${id}`),
 
+  create: (data: any) => apiClient.post("/admin/employees", data),
+
   update: (id: string, data: Record<string, any>) =>
     apiClient.patch(`/admin/employees/${id}`, data),
 
   delete: (id: string) => apiClient.delete(`/admin/employees/${id}`),
 
-  upload: (file: File) => {
+  previewUpload: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return apiClient.post("/admin/employees/upload", formData, {
+    return apiClient.post("/admin/employees/preview-upload", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
+  },
+
+  confirmUpload: (users: any[]) => {
+    return apiClient.post("/admin/employees/confirm-upload", { users });
   },
 };
 
 // ─── Admin — Reports ──────────────────────────────────────────────────────
 export const adminReportsAPI = {
   getAll: (params?: Record<string, any>) =>
-    apiClient.get("/reports", { params: { ...params, status: params?.status || "all" } }),
+    apiClient.get("/reports", {
+      params: { ...params, status: params?.status || "all" },
+    }),
 
   approve: (id: string) => apiClient.patch(`/reports/admin/${id}/approve`, {}),
 

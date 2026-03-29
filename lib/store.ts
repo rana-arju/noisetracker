@@ -8,7 +8,15 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { authAPI, reportsAPI, commentsAPI, votesAPI, adminEmployeesAPI, leaderboardAPI, adminReportsAPI } from "@/lib/api";
+import {
+  authAPI,
+  reportsAPI,
+  commentsAPI,
+  votesAPI,
+  adminEmployeesAPI,
+  leaderboardAPI,
+  adminReportsAPI,
+} from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 export type UserRole = "EMPLOYEE" | "ADMIN" | "SUPERADMIN";
@@ -96,7 +104,10 @@ interface AppContextType {
   employees: EmployeeItem[];
   fetchEmployees: (params?: Record<string, any>) => Promise<void>;
   deleteEmployee: (id: string) => Promise<void>;
-  uploadEmployees: (file: File) => Promise<void>;
+  addEmployees: (users: any[]) => Promise<void>;
+  updateEmployee: (id: string, data: any) => Promise<void>;
+  previewUploadEmployees: (file: File) => Promise<any>;
+  confirmUploadEmployees: (users: any[]) => Promise<void>;
 
   // Profile
   currentProfile: any | null;
@@ -134,18 +145,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     restoreSession();
   }, []);
 
-  const login = useCallback(async (employeeId: string, password: string): Promise<boolean> => {
-    try {
-      const res = await authAPI.login(employeeId, password);
-      const { accessToken, user } = res.data.data;
-      localStorage.setItem("nt_access_token", accessToken);
-      localStorage.setItem("nt_user", JSON.stringify(user));
-      setCurrentUser(user);
-      return true;
-    } catch (err) {
-      return false;
-    }
-  }, []);
+  const login = useCallback(
+    async (employeeId: string, password: string): Promise<boolean> => {
+      try {
+        const res = await authAPI.login(employeeId, password);
+        const { accessToken, user } = res.data.data;
+        localStorage.setItem("nt_access_token", accessToken);
+        localStorage.setItem("nt_user", JSON.stringify(user));
+        setCurrentUser(user);
+        return true;
+      } catch (err) {
+        return false;
+      }
+    },
+    [],
+  );
 
   const logout = useCallback(() => {
     localStorage.removeItem("nt_access_token");
@@ -163,59 +177,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const createReport = useCallback(async (data: {
-    reportedEmployeeName: string;
-    reportedEmployeeId?: string;
-    description?: string;
-    severity?: string;
-  }) => {
-    await reportsAPI.create(data);
-    // Refresh reports after creation
-    await fetchReports();
-  }, [fetchReports]);
+  const createReport = useCallback(
+    async (data: {
+      reportedEmployeeName: string;
+      reportedEmployeeId?: string;
+      description?: string;
+      severity?: string;
+    }) => {
+      await reportsAPI.create(data);
+      // Refresh reports after creation
+      await fetchReports();
+    },
+    [fetchReports],
+  );
 
-  const approveReport = useCallback(async (id: string) => {
-    try {
-      await adminReportsAPI.approve(id);
-      await fetchReports(); // Refresh list
-    } catch (err) {
-      console.error("Failed to approve report", err);
-      throw err;
-    }
-  }, [fetchReports]);
+  const approveReport = useCallback(
+    async (id: string) => {
+      try {
+        await adminReportsAPI.approve(id);
+        await fetchReports(); // Refresh list
+      } catch (err) {
+        console.error("Failed to approve report", err);
+        throw err;
+      }
+    },
+    [fetchReports],
+  );
 
-  const rejectReport = useCallback(async (id: string) => {
-    try {
-      await adminReportsAPI.delete(id);
-      await fetchReports(); // Refresh list
-    } catch (err) {
-      console.error("Failed to reject report", err);
-      throw err;
-    }
-  }, [fetchReports]);
+  const rejectReport = useCallback(
+    async (id: string) => {
+      try {
+        await adminReportsAPI.delete(id);
+        await fetchReports(); // Refresh list
+      } catch (err) {
+        console.error("Failed to reject report", err);
+        throw err;
+      }
+    },
+    [fetchReports],
+  );
 
-  const vote = useCallback(async (reportId: string, voteType: "UPVOTE" | "DOWNVOTE") => {
-    try {
-      const res = await votesAPI.cast(reportId, voteType);
-      const { currentUserVote } = res.data.data;
-      // Optimistically update local state
-      setReports((prev) =>
-        prev.map((r) => {
-          if (r.id !== reportId) return r;
-          const old = r.currentUserVote;
-          let up = r.totalUpvotes;
-          let down = r.totalDownvotes;
-          if (old === "UPVOTE") up -= 1;
-          if (old === "DOWNVOTE") down -= 1;
-          if (currentUserVote === "UPVOTE") up += 1;
-          if (currentUserVote === "DOWNVOTE") down += 1;
-          return { ...r, currentUserVote, totalUpvotes: up, totalDownvotes: down };
-        })
-      );
-    } catch (err) {
-      console.error("Vote failed", err);
-    }
-  }, []);
+  const vote = useCallback(
+    async (reportId: string, voteType: "UPVOTE" | "DOWNVOTE") => {
+      try {
+        const res = await votesAPI.cast(reportId, voteType);
+        const { currentUserVote } = res.data.data;
+        // Optimistically update local state
+        setReports((prev) =>
+          prev.map((r) => {
+            if (r.id !== reportId) return r;
+            const old = r.currentUserVote;
+            let up = r.totalUpvotes;
+            let down = r.totalDownvotes;
+            if (old === "UPVOTE") up -= 1;
+            if (old === "DOWNVOTE") down -= 1;
+            if (currentUserVote === "UPVOTE") up += 1;
+            if (currentUserVote === "DOWNVOTE") down += 1;
+            return {
+              ...r,
+              currentUserVote,
+              totalUpvotes: up,
+              totalDownvotes: down,
+            };
+          }),
+        );
+      } catch (err) {
+        console.error("Vote failed", err);
+      }
+    },
+    [],
+  );
 
   const removeVote = useCallback(async (reportId: string) => {
     try {
@@ -225,9 +256,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (r.id !== reportId) return r;
           const old = r.currentUserVote;
           const up = old === "UPVOTE" ? r.totalUpvotes - 1 : r.totalUpvotes;
-          const down = old === "DOWNVOTE" ? r.totalDownvotes - 1 : r.totalDownvotes;
-          return { ...r, currentUserVote: null, totalUpvotes: up, totalDownvotes: down };
-        })
+          const down =
+            old === "DOWNVOTE" ? r.totalDownvotes - 1 : r.totalDownvotes;
+          return {
+            ...r,
+            currentUserVote: null,
+            totalUpvotes: up,
+            totalDownvotes: down,
+          };
+        }),
       );
     } catch (err) {
       console.error("Remove vote failed", err);
@@ -243,16 +280,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const addComment = useCallback(async (reportId: string, content: string) => {
-    await commentsAPI.create(reportId, content);
-    await fetchComments(reportId);
-    // Increment comment count locally
-    setReports((prev) =>
-      prev.map((r) =>
-        r.id === reportId ? { ...r, totalComments: r.totalComments + 1 } : r
-      )
-    );
-  }, [fetchComments]);
+  const addComment = useCallback(
+    async (reportId: string, content: string) => {
+      await commentsAPI.create(reportId, content);
+      await fetchComments(reportId);
+      // Increment comment count locally
+      setReports((prev) =>
+        prev.map((r) =>
+          r.id === reportId ? { ...r, totalComments: r.totalComments + 1 } : r,
+        ),
+      );
+    },
+    [fetchComments],
+  );
 
   // ─── Admin — Employees ──────────────────────────────────────────────────
   const [employees, setEmployees] = useState<EmployeeItem[]>([]);
@@ -276,15 +316,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const uploadEmployees = useCallback(async (file: File) => {
+  const addEmployees = useCallback(async (users: any[]) => {
     try {
-      await adminEmployeesAPI.upload(file);
+      // For now the API probably only supports one at a time or we use bulk-upload
+      // But the New page calls addEmployees([formData])
+      for (const user of users) {
+        await adminEmployeesAPI.create(user);
+      }
       await fetchEmployees();
     } catch (err) {
-      console.error("Failed to upload employees", err);
+      console.error("Failed to add employee", err);
       throw err;
     }
   }, [fetchEmployees]);
+
+  const updateEmployee = useCallback(async (id: string, data: any) => {
+    try {
+      await adminEmployeesAPI.update(id, data);
+      await fetchEmployees();
+    } catch (err) {
+      console.error("Failed to update employee", err);
+      throw err;
+    }
+  }, [fetchEmployees]);
+
+  const previewUploadEmployees = useCallback(
+    async (file: File) => {
+      try {
+        const res = await adminEmployeesAPI.previewUpload(file);
+        return res.data.data;
+      } catch (err) {
+        console.error("Failed to preview upload", err);
+        throw err;
+      }
+    },
+    [],
+  );
+
+  const confirmUploadEmployees = useCallback(
+    async (users: any[]) => {
+      try {
+        await adminEmployeesAPI.confirmUpload(users);
+        await fetchEmployees();
+      } catch (err) {
+        console.error("Failed to confirm upload", err);
+        throw err;
+      }
+    },
+    [fetchEmployees],
+  );
 
   // ─── Profile ────────────────────────────────────────────────────────────
   const fetchEmployeeProfile = useCallback(async (employeeId: string) => {
@@ -340,7 +420,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     employees,
     fetchEmployees,
     deleteEmployee,
-    uploadEmployees,
+    addEmployees,
+    updateEmployee,
+    previewUploadEmployees,
+    confirmUploadEmployees,
     currentProfile,
     fetchEmployeeProfile,
   };
