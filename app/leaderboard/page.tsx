@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Navbar } from "@/components/shared/navbar";
 import { Footer } from "@/components/shared/footer";
 import { LeaderboardList } from "@/components/leaderboard/leaderboard-list";
+import { LeaderboardListSkeleton } from "@/components/leaderboard/leaderboard-skeleton";
 import { useApp } from "@/lib/store";
 import {
   getLeaderboard,
@@ -21,8 +22,14 @@ import {
 import { Filter } from "lucide-react";
 
 export default function LeaderboardPage() {
-  const { reports } = useApp();
+  const { reports, fetchReports } = useApp();
+  const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState("this-month");
+
+  useEffect(() => {
+    setLoading(true);
+    fetchReports().finally(() => setLoading(false));
+  }, [fetchReports]);
 
   const leaderboard = useMemo(() => {
     let range;
@@ -48,8 +55,8 @@ export default function LeaderboardPage() {
                 মনোযোগ আকর্ষণ: যারা একটু বেশি শব্দ করছেন
               </h1>
               <p className="text-muted-foreground mt-2">
-                রিপোর্ট সংখ্যা এবং সহমতের ভিত্তিতে যাদের দিকে বিশেষ নজর দেওয়া
-                প্রয়োজন
+                রিপোর্ট সংখ্যা এবং সহমতের ভিত্তিতে যাদের দিকে বিশেষ নজর দেওয়া
+                প্রয়োজন
               </p>
             </div>
 
@@ -57,19 +64,24 @@ export default function LeaderboardPage() {
               <Filter className="h-4 w-4 text-muted-foreground" />
               <Select value={timeRange} onValueChange={setTimeRange}>
                 <SelectTrigger className="w-[180px] bg-white">
-                  <SelectValue placeholder="সময়কাল" />
+                  <SelectValue placeholder="সময়কাল" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="this-month">এই মাস</SelectItem>
                   <SelectItem value="last-month">গত মাস</SelectItem>
                   <SelectItem value="last-3-months">গত ৩ মাস</SelectItem>
-                  <SelectItem value="all">সব সময়</SelectItem>
+                  <SelectItem value="all">সব সময়</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <LeaderboardList entries={leaderboard} />
+          {/* Leaderboard Section — shows skeleton while loading */}
+          {loading ? (
+            <LeaderboardListSkeleton count={8} />
+          ) : (
+            <LeaderboardList entries={leaderboard} />
+          )}
         </section>
       </main>
       <Footer />

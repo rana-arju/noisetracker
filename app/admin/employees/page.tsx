@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { AdminNavigation } from "@/components/admin/admin-navigation";
+import { AdminTableSkeleton } from "@/components/admin/admin-skeleton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,15 +47,20 @@ import {
 import { toast } from "sonner";
 
 export default function AdminEmployeesPage() {
-  const { employees, reports, fetchEmployees, deleteEmployee } = useApp();
+  const { employees, reports, currentUser, fetchEmployees, deleteEmployee } = useApp();
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  const isAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "SUPERADMIN";
 
   // Fetch employees on mount
   useEffect(() => {
-    fetchEmployees();
-  }, [fetchEmployees]);
+    if (isAdmin) {
+      setLoading(true);
+      fetchEmployees().finally(() => setLoading(false));
+    }
+  }, [fetchEmployees, isAdmin]);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => 
@@ -83,6 +89,19 @@ export default function AdminEmployeesPage() {
   const getReportCount = (empId: string) => {
     return reports.filter(r => (r.reportedEmployeeId || (r as any).employeeId) === empId).length;
   };
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">আপনাকে অবশ্যই অ্যাডমিন হিসেবে লগইন করতে হবে</p>
+          <Link href="/auth/login">
+            <Button>অ্যাডমিন লগইনে যান</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -123,6 +142,9 @@ export default function AdminEmployeesPage() {
             </div>
           </div>
 
+          {loading ? (
+            <AdminTableSkeleton rows={8} />
+          ) : (
           <div className="rounded-md border border-slate-200 dark:border-slate-800 overflow-hidden">
             <Table>
               <TableHeader className="bg-slate-50 dark:bg-slate-900">
@@ -192,6 +214,7 @@ export default function AdminEmployeesPage() {
               </TableBody>
             </Table>
           </div>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (

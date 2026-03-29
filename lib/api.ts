@@ -89,6 +89,12 @@ export const leaderboardAPI = {
     apiClient.get(`/leaderboard/employees/${employeeId}/profile`),
 };
 
+// ─── Public Users Search (any authenticated user) ────────────────────────
+export const publicUsersAPI = {
+  search: (query: string) =>
+    apiClient.get('/admin/employees/search', { params: { search: query } }),
+};
+
 // ─── Admin — Employees ────────────────────────────────────────────────────
 export const adminEmployeesAPI = {
   getAll: (params?: Record<string, any>) =>

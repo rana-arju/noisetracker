@@ -22,14 +22,15 @@ import Link from "next/link";
 
 export default function CreateReportPage() {
   const router = useRouter();
-  const { currentUser, createReport, employees, fetchEmployees } = useApp();
+  const { currentUser, createReport } = useApp();
   const [employeeId, setEmployeeId] = useState("");
+  const [employeeName, setEmployeeName] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<"low" | "medium" | "high">("medium");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const selectedEmployee = employees.find((e) => e.id === employeeId);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +50,7 @@ export default function CreateReportPage() {
 
     try {
       await createReport({
-        reportedEmployeeName: selectedEmployee?.name || "Unknown",
+        reportedEmployeeName: employeeName || "Unknown",
         reportedEmployeeId: employeeId,
         description: description.trim(),
         severity: severity.toUpperCase(),
@@ -93,7 +94,10 @@ export default function CreateReportPage() {
               <Label htmlFor="employee">কর্মচারী (আবশ্যক)</Label>
               <EmployeeSelect 
                 value={employeeId} 
-                onValueChange={setEmployeeId} 
+                onValueChange={(id, name) => {
+                  setEmployeeId(id);
+                  setEmployeeName(name);
+                }}
                 error={!!error && !employeeId}
               />
             </div>

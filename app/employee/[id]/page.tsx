@@ -7,6 +7,11 @@ import { Footer } from "@/components/shared/footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  EmployeeProfileHeaderSkeleton,
+  EmployeeStatsSkeleton,
+  EmployeeReportGridSkeleton,
+} from "@/components/shared/employee-skeleton";
 import { 
   Calendar, 
   ChevronLeft, 
@@ -63,10 +68,9 @@ export default function EmployeeProfilePage() {
 
   const stats = useMemo(() => {
     if (currentProfile?.stats && !reports.some(r => r.reportedEmployeeId === employeeId)) {
-        // Use backend stats if reports aren't all in store yet
         return {
             lifetimeCount: currentProfile.stats.totalReports,
-            thisMonthCount: currentProfile.stats.totalReports, // approximation
+            thisMonthCount: currentProfile.stats.totalReports,
             last7DaysCount: 0,
             avgPerMonth: 0,
             firstReported: null,
@@ -81,7 +85,6 @@ export default function EmployeeProfilePage() {
   const filteredReports = useMemo(() => {
     let list = reports.filter(r => r.reportedEmployeeId === employeeId);
     
-    // Time filter
     const now = new Date();
     if (timeFilter === "month") {
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -91,7 +94,6 @@ export default function EmployeeProfilePage() {
       list = list.filter(r => new Date(r.createdAt) >= start);
     }
     
-    // Severity filter
     if (severityFilter !== "all") {
       list = list.filter(r => r.severity?.toLowerCase() === severityFilter.toLowerCase());
     }
@@ -99,26 +101,12 @@ export default function EmployeeProfilePage() {
     return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [employeeId, reports, timeFilter, severityFilter]);
 
-  if (isLocalLoading) {
+  if (!isLocalLoading && !employee && filteredReports.length === 0) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-1 container mx-auto px-4 py-8 text-center">
-          <div className="animate-pulse space-y-4">
-             <div className="h-12 w-48 bg-muted rounded mx-auto" />
-             <div className="h-40 w-full bg-muted rounded" />
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (!employee && filteredReports.length === 0) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1 container mx-auto px-4 py-8 text-center">
-          <h1 className="text-2xl font-bold">কর্মচারী খুঁজে পাওয়া যায়নি</h1>
+          <h1 className="text-2xl font-bold">কর্মচারী খুঁজে পাওয়া যায়নি</h1>
           <Link href="/">
             <Button className="mt-4">হোমে ফিরে যান</Button>
           </Link>
@@ -139,65 +127,73 @@ export default function EmployeeProfilePage() {
           তালিকায় ফিরে যান
         </Link>
 
-        {/* Header Section */}
-        <Card className="p-6 md:p-8 border-none shadow-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-          <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-            <div className="h-24 w-24 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-3xl font-bold text-slate-400">
-              {employeeName.charAt(0)}
-            </div>
-            <div className="flex-1 space-y-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{employeeName}</h1>
-                <Badge variant="outline" className="text-xs">{employee?.employeeId || id}</Badge>
-                {stats.lifetimeCount > 10 && (
-                  <Badge className="bg-red-100 text-red-800 hover:bg-red-200 border-none">উচ্চ সতর্কতা</Badge>
-                )}
+        {/* Header Section — shows skeleton while loading */}
+        {isLocalLoading ? (
+          <EmployeeProfileHeaderSkeleton />
+        ) : (
+          <Card className="p-6 md:p-8 border-none shadow-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+              <div className="h-24 w-24 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-3xl font-bold text-slate-400">
+                {employeeName.charAt(0)}
               </div>
-              <p className="text-muted-foreground flex items-center gap-4 text-sm">
-                <span className="flex items-center gap-1.5"><History className="h-4 w-4" /> প্রথম রিপোর্ট: {stats.firstReported ? formatDateFull(new Date(stats.firstReported)) : "নেই"}</span>
-                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> শেষ রিপোর্ট: {stats.lastReported ? formatDateFull(new Date(stats.lastReported)) : "নেই"}</span>
-              </p>
-            </div>
-            <div className="flex gap-4 w-full md:w-auto border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800 pt-6 md:pt-0 md:pl-8">
-              <div className="text-center px-4">
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.totalUpvotes}</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">সহমত</p>
+              <div className="flex-1 space-y-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{employeeName}</h1>
+                  <Badge variant="outline" className="text-xs">{employee?.employeeId || id}</Badge>
+                  {stats.lifetimeCount > 10 && (
+                    <Badge className="bg-red-100 text-red-800 hover:bg-red-200 border-none">উচ্চ সতর্কতা</Badge>
+                  )}
+                </div>
+                <p className="text-muted-foreground flex items-center gap-4 text-sm flex-wrap">
+                  <span className="flex items-center gap-1.5"><History className="h-4 w-4" /> প্রথম রিপোর্ট: {stats.firstReported ? formatDateFull(new Date(stats.firstReported)) : "নেই"}</span>
+                  <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> শেষ রিপোর্ট: {stats.lastReported ? formatDateFull(new Date(stats.lastReported)) : "নেই"}</span>
+                </p>
               </div>
-              <div className="text-center px-4 border-l border-slate-100 dark:border-slate-800">
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.totalComments}</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">আলোচনা</p>
+              <div className="flex gap-4 w-full md:w-auto border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800 pt-6 md:pt-0 md:pl-8">
+                <div className="text-center px-4">
+                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.totalUpvotes}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">সহমত</p>
+                </div>
+                <div className="text-center px-4 border-l border-slate-100 dark:border-slate-800">
+                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.totalComments}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">আলোচনা</p>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard 
-            label="সর্বমোট রিপোর্ট" 
-            value={stats.lifetimeCount} 
-            sub="পুরো সময়কাল" 
-            icon={<BarChart3 className="h-5 w-5 text-blue-500" />} 
-          />
-          <StatCard 
-            label="এই মাসের রিপোর্ট" 
-            value={stats.thisMonthCount} 
-            sub="মার্চ ২০২৬" 
-            icon={<Calendar className="h-5 w-5 text-amber-500" />} 
-          />
-          <StatCard 
-            label="গত ৭ দিনের রিপোর্ট" 
-            value={stats.last7DaysCount} 
-            sub="সাম্প্রতিক" 
-            icon={<Clock className="h-5 w-5 text-red-500" />} 
-          />
-          <StatCard 
-            label="মাসিক গড় রিপোর্ট" 
-            value={stats.avgPerMonth} 
-            sub="ফ্রিকোয়েন্সি" 
-            icon={<AlertTriangle className="h-5 w-5 text-slate-500" />} 
-          />
-        </div>
+        {/* Stats Grid — shows skeleton while loading */}
+        {isLocalLoading ? (
+          <EmployeeStatsSkeleton />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard 
+              label="সর্বমোট রিপোর্ট" 
+              value={stats.lifetimeCount} 
+              sub="পুরো সময়কাল" 
+              icon={<BarChart3 className="h-5 w-5 text-blue-500" />} 
+            />
+            <StatCard 
+              label="এই মাসের রিপোর্ট" 
+              value={stats.thisMonthCount} 
+              sub="মার্চ ২০২৬" 
+              icon={<Calendar className="h-5 w-5 text-amber-500" />} 
+            />
+            <StatCard 
+              label="গত ৭ দিনের রিপোর্ট" 
+              value={stats.last7DaysCount} 
+              sub="সাম্প্রতিক" 
+              icon={<Clock className="h-5 w-5 text-red-500" />} 
+            />
+            <StatCard 
+              label="মাসিক গড় রিপোর্ট" 
+              value={stats.avgPerMonth} 
+              sub="ফ্রিকোয়েন্সি" 
+              icon={<AlertTriangle className="h-5 w-5 text-slate-500" />} 
+            />
+          </div>
+        )}
 
         {/* Timeline & Filters */}
         <div className="space-y-6">
@@ -209,10 +205,10 @@ export default function EmployeeProfilePage() {
             <div className="flex flex-wrap items-center gap-3">
               <Select value={timeFilter} onValueChange={setTimeFilter}>
                 <SelectTrigger className="w-[140px] bg-white dark:bg-slate-900">
-                  <SelectValue placeholder="সময়কাল" />
+                  <SelectValue placeholder="সময়কাল" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">সব সময়</SelectItem>
+                  <SelectItem value="all">সব সময়</SelectItem>
                   <SelectItem value="month">এই মাস</SelectItem>
                   <SelectItem value="week">গত ৭ দিন</SelectItem>
                 </SelectContent>
@@ -232,7 +228,10 @@ export default function EmployeeProfilePage() {
             </div>
           </div>
 
-          {filteredReports.length > 0 ? (
+          {/* Reports Grid — shows skeleton while loading */}
+          {isLocalLoading ? (
+            <EmployeeReportGridSkeleton count={4} />
+          ) : filteredReports.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredReports.map((report) => (
                 <ReportCard key={report.id} report={report} />
@@ -243,7 +242,7 @@ export default function EmployeeProfilePage() {
               <div className="flex justify-center mb-4 text-muted-foreground/30">
                 <Filter className="h-12 w-12" />
               </div>
-              <h3 className="text-lg font-medium">কোনো রিপোর্ট পাওয়া যায়নি</h3>
+              <h3 className="text-lg font-medium">কোনো রিপোর্ট পাওয়া যায়নি</h3>
               <p className="text-muted-foreground mt-1">আপনার ফিল্টার পরিবর্তন করে দেখুন অথবা পরে আবার চেষ্টা করুন।</p>
             </Card>
           )}

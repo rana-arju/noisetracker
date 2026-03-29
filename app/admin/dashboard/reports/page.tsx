@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AdminNavigation } from "@/components/admin/admin-navigation";
+import { AdminTableSkeleton } from "@/components/admin/admin-skeleton";
 import { AdminReportRow } from "@/components/admin/admin-report-row";
 import { ConfirmDeleteModal } from "@/components/admin/confirm-delete-modal";
 import { Button } from "@/components/ui/button";
@@ -19,14 +20,22 @@ import Link from "next/link";
 
 export default function AdminReportsPage() {
   const { reports, currentUser, fetchReports, approveReport, rejectReport } = useApp();
+  const [loading, setLoading] = useState(true);
+
+  const isAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "SUPERADMIN";
+
+  useEffect(() => {
+    if (isAdmin) {
+      setLoading(true);
+      fetchReports().finally(() => setLoading(false));
+    }
+  }, [fetchReports, isAdmin]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "deleted">("pending");
   const [deleteConfirm, setDeleteConfirm] = useState<{
     reportId: string;
     employeeName: string;
   } | null>(null);
-
-  const isAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "SUPERADMIN";
 
   // Filter and search
   const filteredReports = useMemo(() => {
@@ -114,9 +123,11 @@ export default function AdminReportsPage() {
             </Select>
           </div>
 
-          {/* Reports List */}
+          {/* Reports List — shows skeleton while loading */}
           <div className="space-y-4">
-            {filteredReports.length === 0 ? (
+            {loading ? (
+              <AdminTableSkeleton rows={6} />
+            ) : filteredReports.length === 0 ? (
               <div className="rounded-lg border border-border bg-card p-12 text-center">
                 <p className="text-muted-foreground">কোন রিপোর্ট পাওয়া যায়নি</p>
               </div>

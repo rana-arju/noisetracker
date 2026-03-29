@@ -10,40 +10,25 @@ import { VoteButtons } from "@/components/shared/vote-buttons";
 import { StatusBadge, SeverityBadge } from "@/components/shared/badges";
 import { useApp } from "@/lib/store";
 import { formatDateFull } from "@/lib/helpers";
+import { ReportDetailSkeleton, CommentsSkeleton } from "@/components/reports/report-skeleton";
 import { ArrowLeft, Send } from "lucide-react";
 import Link from "next/link";
 
 export default function ReportDetailPage() {
   const params = useParams();
   const reportId = params.id as string;
-  const { reports, addComment, comments, fetchComments } = useApp();
+  const { reports, addComment, comments, fetchComments, isLoading } = useApp();
   const report = reports.find((r) => r.id === reportId);
   const reportComments = comments[reportId] || [];
   const [commentText, setCommentText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(true);
 
   // Fetch comments on mount
   useEffect(() => {
-    fetchComments(reportId);
+    setCommentsLoading(true);
+    fetchComments(reportId).finally(() => setCommentsLoading(false));
   }, [fetchComments, reportId]);
-
-  if (!report) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <div className="rounded-lg border border-border bg-card p-12 text-center">
-            <p className="text-muted-foreground">রিপোর্ট পাওয়া যায়নি</p>
-            <Link href="/">
-              <Button variant="outline" className="mt-4">
-                হোমে ফিরে যান
-              </Button>
-            </Link>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   const handleAddComment = async () => {
     if (!commentText.trim()) return;
@@ -69,54 +54,58 @@ export default function ReportDetailPage() {
           রিপোর্টে ফিরে যান
         </Link>
 
-        {/* Report Details */}
-        <Card className="p-8 border border-border mb-8">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <h1 className="text-3xl font-bold">{report.reportedEmployeeName}</h1>
-                <p className="text-muted-foreground mt-2">
-                  {formatDateFull(new Date(report.createdAt))} রিপোর্ট করা হয়েছে
-                </p>
+        {/* Report Details Section — shows skeleton while loading */}
+        {isLoading || !report ? (
+          <ReportDetailSkeleton />
+        ) : (
+          <Card className="p-8 border border-border mb-8">
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h1 className="text-3xl font-bold">{report.reportedEmployeeName}</h1>
+                  <p className="text-muted-foreground mt-2">
+                    {formatDateFull(new Date(report.createdAt))} রিপোর্ট করা হয়েছে
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-wrap justify-end">
+                  <StatusBadge status={report.status as any} />
+                  <SeverityBadge severity={report.severity as any} />
+                </div>
               </div>
-              <div className="flex gap-2 flex-wrap justify-end">
-                <StatusBadge status={report.status as any} />
-                <SeverityBadge severity={report.severity as any} />
+
+              {/* Description */}
+              <div className="border-t border-border pt-6">
+                <h2 className="text-lg font-semibold mb-2">বিবরণ</h2>
+                <p className="text-foreground leading-relaxed">{report.description}</p>
               </div>
-            </div>
 
-            {/* Description */}
-            <div className="border-t border-border pt-6">
-              <h2 className="text-lg font-semibold mb-2">বিবরণ</h2>
-              <p className="text-foreground leading-relaxed">{report.description}</p>
-            </div>
-
-            {/* Reporter Info */}
-            <div className="bg-muted p-4 rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                <strong>রিপোর্ট করেছেন:</strong> {report.anonymousReporterName}
-              </p>
-            </div>
-
-            {/* Vote Section */}
-            <div className="border-t border-border pt-6">
-              <h2 className="text-lg font-semibold mb-4">কমিউনিটির প্রতিক্রিয়া</h2>
-              <div className="flex items-center gap-4">
-                <VoteButtons
-                  reportId={report.id}
-                  upvotes={report.totalUpvotes}
-                  downvotes={report.totalDownvotes}
-                />
+              {/* Reporter Info */}
+              <div className="bg-muted p-4 rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  {report.totalComments} টি কমেন্ট
+                  <strong>রিপোর্ট করেছেন:</strong> {report.anonymousReporterName}
                 </p>
               </div>
-            </div>
-          </div>
-        </Card>
 
-        {/* Comments Section */}
+              {/* Vote Section */}
+              <div className="border-t border-border pt-6">
+                <h2 className="text-lg font-semibold mb-4">কমিউনিটির প্রতিক্রিয়া</h2>
+                <div className="flex items-center gap-4">
+                  <VoteButtons
+                    reportId={report.id}
+                    upvotes={report.totalUpvotes}
+                    downvotes={report.totalDownvotes}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {report.totalComments} টি কমেন্ট
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Comments Section — loads independently */}
         <div className="space-y-6">
           <h2 className="text-2xl font-bold">কমেন্ট</h2>
 
@@ -141,9 +130,11 @@ export default function ReportDetailPage() {
             </div>
           </Card>
 
-          {/* Comments List */}
+          {/* Comments List — shows skeleton while loading */}
           <div className="space-y-4">
-            {reportComments.length === 0 ? (
+            {commentsLoading ? (
+              <CommentsSkeleton count={3} />
+            ) : reportComments.length === 0 ? (
               <div className="rounded-lg border border-border bg-card p-8 text-center">
                 <p className="text-muted-foreground">এখনো কোনো কমেন্ট নেই। প্রথম কমেন্টটি আপনিই করুন!</p>
               </div>
