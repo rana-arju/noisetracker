@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Navbar } from "@/components/shared/navbar";
 import { Card } from "@/components/ui/card";
@@ -16,11 +16,16 @@ import Link from "next/link";
 export default function ReportDetailPage() {
   const params = useParams();
   const reportId = params.id as string;
-  const { reports, addComment, getCommentsForReport } = useApp();
+  const { reports, addComment, comments, fetchComments } = useApp();
   const report = reports.find((r) => r.id === reportId);
-  const comments = getCommentsForReport(reportId);
+  const reportComments = comments[reportId] || [];
   const [commentText, setCommentText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch comments on mount
+  useEffect(() => {
+    fetchComments(reportId);
+  }, [fetchComments, reportId]);
 
   if (!report) {
     return (
@@ -43,9 +48,14 @@ export default function ReportDetailPage() {
   const handleAddComment = async () => {
     if (!commentText.trim()) return;
     setIsSubmitting(true);
-    addComment(reportId, commentText);
-    setCommentText("");
-    setIsSubmitting(false);
+    try {
+      await addComment(reportId, commentText);
+      setCommentText("");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -65,14 +75,14 @@ export default function ReportDetailPage() {
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <h1 className="text-3xl font-bold">{report.employeeName}</h1>
+                <h1 className="text-3xl font-bold">{report.reportedEmployeeName}</h1>
                 <p className="text-muted-foreground mt-2">
-                  {formatDateFull(report.createdAt)} রিপোর্ট করা হয়েছে
+                  {formatDateFull(new Date(report.createdAt))} রিপোর্ট করা হয়েছে
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap justify-end">
-                <StatusBadge status={report.status} />
-                <SeverityBadge severity={report.severity} />
+                <StatusBadge status={report.status as any} />
+                <SeverityBadge severity={report.severity as any} />
               </div>
             </div>
 
@@ -85,7 +95,7 @@ export default function ReportDetailPage() {
             {/* Reporter Info */}
             <div className="bg-muted p-4 rounded-lg">
               <p className="text-sm text-muted-foreground">
-                <strong>রিপোর্ট করেছেন:</strong> {report.reporterName}
+                <strong>রিপোর্ট করেছেন:</strong> {report.anonymousReporterName}
               </p>
             </div>
 
@@ -95,11 +105,11 @@ export default function ReportDetailPage() {
               <div className="flex items-center gap-4">
                 <VoteButtons
                   reportId={report.id}
-                  upvotes={report.upvotes}
-                  downvotes={report.downvotes}
+                  upvotes={report.totalUpvotes}
+                  downvotes={report.totalDownvotes}
                 />
                 <p className="text-sm text-muted-foreground">
-                  {comments.length} টি কমেন্ট
+                  {report.totalComments} টি কমেন্ট
                 </p>
               </div>
             </div>
@@ -133,25 +143,20 @@ export default function ReportDetailPage() {
 
           {/* Comments List */}
           <div className="space-y-4">
-            {comments.length === 0 ? (
+            {reportComments.length === 0 ? (
               <div className="rounded-lg border border-border bg-card p-8 text-center">
                 <p className="text-muted-foreground">এখনো কোনো কমেন্ট নেই। প্রথম কমেন্টটি আপনিই করুন!</p>
               </div>
             ) : (
-              comments.map((comment) => (
+              reportComments.map((comment) => (
                 <Card key={comment.id} className="p-4 border border-border">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <p className="font-semibold">{comment.userName}</p>
+                      <p className="font-semibold">{comment.anonymousCommenterName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatDateFull(comment.createdAt)}
+                        {formatDateFull(new Date(comment.createdAt))}
                       </p>
                     </div>
-                    {comment.upvotes ? (
-                      <span className="text-xs bg-muted px-2 py-1 rounded">
-                        👍 {comment.upvotes}
-                      </span>
-                    ) : null}
                   </div>
                   <p className="text-foreground">{comment.content}</p>
                 </Card>

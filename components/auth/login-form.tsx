@@ -28,14 +28,26 @@ export function LoginForm() {
       return;
     }
 
-    const success = login(employeeId, password);
-    if (success) {
-      router.push("/");
-    } else {
-      setError("ভুল এমপ্লয়ী আইডি বা পাসওয়ার্ড");
+    try {
+      const success = await login(employeeId, password);
+      if (success) {
+        // Check role for redirection
+        const userJson = localStorage.getItem("nt_user");
+        const user = userJson ? JSON.parse(userJson) : null;
+        
+        if (user?.role === "ADMIN" || user?.role === "SUPERADMIN") {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/");
+        }
+      } else {
+        setError("ভুল এমপ্লয়ী আইডি বা পাসওয়ার্ড");
+      }
+    } catch {
+      setError("সার্ভার সংযোগে সমস্যা। পরে চেষ্টা করুন।");
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
@@ -92,7 +104,9 @@ export function LoginForm() {
 
         <div className="border-t border-border pt-4">
           <p className="text-xs text-muted-foreground mb-2">ডেমো ক্রেডেনশিয়াল:</p>
-          <p className="text-xs font-mono">ID: BD-001 / Pass: 123456</p>
+          <p className="text-xs font-mono">কর্মী: 11612 / emp123</p>
+          <p className="text-xs font-mono">অ্যাডমিন: 10002 / admin123</p>
+          <p className="text-xs font-mono">সুপার অ্যাডমিন: 10001 / superadmin123</p>
         </div>
       </div>
     </Card>

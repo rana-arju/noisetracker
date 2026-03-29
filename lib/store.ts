@@ -8,303 +8,348 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import {
-  Report,
-  User,
-  Vote,
-  Comment,
-  AdminSession,
-  ReportStatus,
-  Employee,
-} from "@/lib/types";
-import { mockReports, mockComments, mockUsers, mockAdmin, mockEmployees } from "@/lib/mock-data";
+import { authAPI, reportsAPI, commentsAPI, votesAPI, adminEmployeesAPI, leaderboardAPI, adminReportsAPI } from "@/lib/api";
 
+// ─── Types ────────────────────────────────────────────────────────────────
+export type UserRole = "EMPLOYEE" | "ADMIN" | "SUPERADMIN";
+
+export interface AuthUser {
+  id: string;
+  employeeId: string;
+  name?: string | null;
+  email?: string | null;
+  role: UserRole;
+}
+
+export interface ReportItem {
+  id: string;
+  reportedEmployeeName: string;
+  reportedEmployeeId?: string | null;
+  description?: string | null;
+  severity: string;
+  status: string;
+  anonymousReporterName: string;
+  totalUpvotes: number;
+  totalDownvotes: number;
+  totalComments: number;
+  currentUserVote: "UPVOTE" | "DOWNVOTE" | null;
+  createdAt: string;
+  updatedAt: string;
+  // Admin-only
+  createdBy?: {
+    id: string;
+    employeeId: string;
+    name?: string | null;
+  };
+}
+
+export interface CommentItem {
+  id: string;
+  reportId: string;
+  content: string;
+  anonymousCommenterName: string;
+  createdAt: string;
+  user?: { id: string; employeeId: string; name?: string | null };
+}
+
+export interface EmployeeItem {
+  id: string;
+  employeeId: string;
+  name: string;
+  email?: string | null;
+  designation?: string | null;
+  department?: string | null;
+  role: UserRole;
+  status: string;
+  createdAt: string;
+}
+
+// ─── Context Interface ────────────────────────────────────────────────────
 interface AppContextType {
-  currentUser: User | null;
-  adminSession: AdminSession | null;
-  login: (employeeId: string, password: string) => boolean;
-  adminLogin: (email: string, password: string) => boolean;
+  currentUser: AuthUser | null;
+  isLoading: boolean;
+
+  login: (employeeId: string, password: string) => Promise<boolean>;
   logout: () => void;
 
-  reports: Report[];
-  createReport: (report: Omit<Report, "id" | "createdAt" | "updatedAt">) => void;
-  updateReportStatus: (reportId: string, status: ReportStatus) => void;
-  deleteReport: (reportId: string) => void;
+  reports: ReportItem[];
+  reportsMeta: any;
+  fetchReports: (params?: Record<string, any>) => Promise<void>;
+  createReport: (data: {
+    reportedEmployeeName: string;
+    reportedEmployeeId?: string;
+    description?: string;
+    severity?: string;
+  }) => Promise<void>;
+  vote: (reportId: string, voteType: "UPVOTE" | "DOWNVOTE") => Promise<void>;
+  removeVote: (reportId: string) => Promise<void>;
 
-  votes: Vote[];
-  vote: (reportId: string, voteType: "upvote" | "downvote" | null) => void;
-  getVoteForReport: (reportId: string) => Vote | undefined;
+  // Admin moderation
+  approveReport: (id: string) => Promise<void>;
+  rejectReport: (id: string) => Promise<void>; // mapped to delete for simplicity or status update
 
-  comments: Comment[];
-  addComment: (reportId: string, content: string) => void;
-  getCommentsForReport: (reportId: string) => Comment[];
+  comments: Record<string, CommentItem[]>;
+  fetchComments: (reportId: string) => Promise<void>;
+  addComment: (reportId: string, content: string) => Promise<void>;
 
-  approveReport: (reportId: string) => void;
-  rejectReport: (reportId: string) => void;
-  
-  employees: Employee[];
-  addEmployees: (newEmployees: Omit<Employee, "id" | "createdAt">[]) => void;
-  updateEmployee: (id: string, data: Partial<Employee>) => void;
-  deleteEmployee: (id: string) => void;
+  // Admin
+  employees: EmployeeItem[];
+  fetchEmployees: (params?: Record<string, any>) => Promise<void>;
+  deleteEmployee: (id: string) => Promise<void>;
+  uploadEmployees: (file: File) => Promise<void>;
+
+  // Profile
+  currentProfile: any | null;
+  fetchEmployeeProfile: (employeeId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
-  const [reports, setReports] = useState<Report[]>(mockReports);
-  const [votes, setVotes] = useState<Vote[]>([]);
-  const [comments, setComments] = useState<Comment[]>(mockComments);
-  const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [reports, setReports] = useState<ReportItem[]>([]);
+  const [reportsMeta, setReportsMeta] = useState<any>(null);
+  const [comments, setComments] = useState<Record<string, CommentItem[]>>({});
+  const [currentProfile, setCurrentProfile] = useState<any | null>(null);
 
-  // Persistence logic
+  // Restore user session on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem("nt_user");
-    const savedAdmin = localStorage.getItem("nt_admin");
-    if (savedUser) setCurrentUser(JSON.parse(savedUser));
-    if (savedAdmin) setAdminSession(JSON.parse(savedAdmin));
+    const restoreSession = async () => {
+      const token = localStorage.getItem("nt_access_token");
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const res = await authAPI.getMe();
+        setCurrentUser(res.data.data);
+      } catch {
+        localStorage.removeItem("nt_access_token");
+        localStorage.removeItem("nt_user");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    restoreSession();
   }, []);
 
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem("nt_user", JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem("nt_user");
-    }
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (adminSession) {
-      localStorage.setItem("nt_admin", JSON.stringify(adminSession));
-    } else {
-      localStorage.removeItem("nt_admin");
-    }
-  }, [adminSession]);
-
-  const login = useCallback((employeeId: string, password: string): boolean => {
-    // In our mock, if employee exists and password matches '123456'
-    const employee = employees.find((e) => e.employeeId === employeeId);
-    
-    if (employee && password === "123456") {
-      const user: User = {
-        id: employee.id,
-        name: employee.name,
-        employeeId: employee.employeeId,
-        email: employee.email,
-        password: "123456",
-        role: "user",
-        createdAt: employee.createdAt,
-      };
+  const login = useCallback(async (employeeId: string, password: string): Promise<boolean> => {
+    try {
+      const res = await authAPI.login(employeeId, password);
+      const { accessToken, user } = res.data.data;
+      localStorage.setItem("nt_access_token", accessToken);
+      localStorage.setItem("nt_user", JSON.stringify(user));
       setCurrentUser(user);
       return true;
+    } catch (err) {
+      return false;
     }
-    return false;
-  }, [employees]);
-
-  const adminLogin = useCallback((email: string, password: string): boolean => {
-    if (email === mockAdmin.email && password === mockAdmin.password) {
-      setAdminSession({
-        id: "ADMIN-SESSION-1",
-        adminEmail: mockAdmin.email,
-        adminName: mockAdmin.name,
-        loginTime: new Date(),
-      });
-      return true;
-    }
-    return false;
   }, []);
 
   const logout = useCallback(() => {
+    localStorage.removeItem("nt_access_token");
+    localStorage.removeItem("nt_user");
     setCurrentUser(null);
-    setAdminSession(null);
   }, []);
 
-  const createReport = useCallback(
-    (report: Omit<Report, "id" | "createdAt" | "updatedAt">) => {
-      const newReport: Report = {
-        ...report,
-        id: `RPT-${Date.now()}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setReports((prev) => [newReport, ...prev]);
-    },
-    []
-  );
-
-  const updateReportStatus = useCallback((reportId: string, status: ReportStatus) => {
-    setReports((prev) =>
-      prev.map((report) =>
-        report.id === reportId
-          ? { ...report, status, updatedAt: new Date() }
-          : report
-      )
-    );
+  const fetchReports = useCallback(async (params?: Record<string, any>) => {
+    try {
+      const res = await reportsAPI.getAll(params);
+      setReports(res.data.data);
+      setReportsMeta(res.data.meta);
+    } catch (err) {
+      console.error("Failed to fetch reports", err);
+    }
   }, []);
 
-  const deleteReport = useCallback((reportId: string) => {
-    setReports((prev) =>
-      prev.filter((report) => report.id !== reportId)
-    );
-  }, []);
+  const createReport = useCallback(async (data: {
+    reportedEmployeeName: string;
+    reportedEmployeeId?: string;
+    description?: string;
+    severity?: string;
+  }) => {
+    await reportsAPI.create(data);
+    // Refresh reports after creation
+    await fetchReports();
+  }, [fetchReports]);
 
-  const vote = useCallback(
-    (reportId: string, voteType: "upvote" | "downvote" | null) => {
-      if (!currentUser && !adminSession) return;
+  const approveReport = useCallback(async (id: string) => {
+    try {
+      await adminReportsAPI.approve(id);
+      await fetchReports(); // Refresh list
+    } catch (err) {
+      console.error("Failed to approve report", err);
+      throw err;
+    }
+  }, [fetchReports]);
 
-      const userId = currentUser?.id || adminSession?.id || "guest";
+  const rejectReport = useCallback(async (id: string) => {
+    try {
+      await adminReportsAPI.delete(id);
+      await fetchReports(); // Refresh list
+    } catch (err) {
+      console.error("Failed to reject report", err);
+      throw err;
+    }
+  }, [fetchReports]);
 
-      setVotes((prev) => {
-        const existingVote = prev.find(
-          (v) => v.reportId === reportId && v.userId === userId
-        );
-
-        if (existingVote) {
-          if (existingVote.voteType === voteType) {
-            return prev.filter((v) => v !== existingVote);
-          }
-          return prev.map((v) =>
-            v === existingVote ? { ...v, voteType } : v
-          );
-        }
-
-        return [...prev, { reportId, userId, voteType }];
-      });
-
+  const vote = useCallback(async (reportId: string, voteType: "UPVOTE" | "DOWNVOTE") => {
+    try {
+      const res = await votesAPI.cast(reportId, voteType);
+      const { currentUserVote } = res.data.data;
+      // Optimistically update local state
       setReports((prev) =>
-        prev.map((report) => {
-          if (report.id === reportId) {
-            const existingVote = votes.find(
-              (v) => v.reportId === reportId && v.userId === userId
-            );
-
-            let newUpvotes = report.upvotes;
-            let newDownvotes = report.downvotes;
-
-            if (existingVote?.voteType === "upvote") newUpvotes -= 1;
-            if (existingVote?.voteType === "downvote") newDownvotes -= 1;
-
-            if (voteType === "upvote") newUpvotes += 1;
-            if (voteType === "downvote") newDownvotes += 1;
-
-            return {
-              ...report,
-              upvotes: newUpvotes,
-              downvotes: newDownvotes,
-            };
-          }
-          return report;
+        prev.map((r) => {
+          if (r.id !== reportId) return r;
+          const old = r.currentUserVote;
+          let up = r.totalUpvotes;
+          let down = r.totalDownvotes;
+          if (old === "UPVOTE") up -= 1;
+          if (old === "DOWNVOTE") down -= 1;
+          if (currentUserVote === "UPVOTE") up += 1;
+          if (currentUserVote === "DOWNVOTE") down += 1;
+          return { ...r, currentUserVote, totalUpvotes: up, totalDownvotes: down };
         })
       );
-    },
-    [currentUser, adminSession, votes]
-  );
+    } catch (err) {
+      console.error("Vote failed", err);
+    }
+  }, []);
 
-  const getVoteForReport = useCallback(
-    (reportId: string): Vote | undefined => {
-      const userId = currentUser?.id || adminSession?.id || "guest";
-      return votes.find((v) => v.reportId === reportId && v.userId === userId);
-    },
-    [currentUser, adminSession, votes]
-  );
-
-  const addComment = useCallback(
-    (reportId: string, content: string) => {
-      if (!currentUser && !adminSession) return;
-
-      const newComment: Comment = {
-        id: `COM-${Date.now()}`,
-        reportId,
-        userId: currentUser?.id || adminSession?.id || "guest",
-        userName: currentUser?.name || adminSession?.adminName || "Guest",
-        content,
-        createdAt: new Date(),
-        upvotes: 0,
-      };
-
-      setComments((prev) => [newComment, ...prev]);
-
+  const removeVote = useCallback(async (reportId: string) => {
+    try {
+      await votesAPI.remove(reportId);
       setReports((prev) =>
-        prev.map((report) =>
-          report.id === reportId
-            ? { ...report, commentCount: report.commentCount + 1 }
-            : report
-        )
+        prev.map((r) => {
+          if (r.id !== reportId) return r;
+          const old = r.currentUserVote;
+          const up = old === "UPVOTE" ? r.totalUpvotes - 1 : r.totalUpvotes;
+          const down = old === "DOWNVOTE" ? r.totalDownvotes - 1 : r.totalDownvotes;
+          return { ...r, currentUserVote: null, totalUpvotes: up, totalDownvotes: down };
+        })
       );
-    },
-    [currentUser, adminSession]
-  );
-
-  const getCommentsForReport = useCallback(
-    (reportId: string): Comment[] => {
-      return comments.filter((c) => c.reportId === reportId);
-    },
-    [comments]
-  );
-
-  const approveReport = useCallback((reportId: string) => {
-    updateReportStatus(reportId, "approved");
-  }, [updateReportStatus]);
-
-  const rejectReport = useCallback((reportId: string) => {
-    updateReportStatus(reportId, "deleted");
-  }, [updateReportStatus]);
-
-  const addEmployees = useCallback((newEmployees: Omit<Employee, "id" | "createdAt">[]) => {
-    const formatted: Employee[] = newEmployees.map((emp) => ({
-      ...emp,
-      id: `EMP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date(),
-    }));
-    setEmployees((prev) => [...prev, ...formatted]);
+    } catch (err) {
+      console.error("Remove vote failed", err);
+    }
   }, []);
 
-  const updateEmployee = useCallback((id: string, data: Partial<Employee>) => {
-    setEmployees((prev) =>
-      prev.map((emp) => (emp.id === id ? { ...emp, ...data } : emp))
+  const fetchComments = useCallback(async (reportId: string) => {
+    try {
+      const res = await commentsAPI.getByReport(reportId);
+      setComments((prev) => ({ ...prev, [reportId]: res.data.data }));
+    } catch (err) {
+      console.error("Failed to fetch comments", err);
+    }
+  }, []);
+
+  const addComment = useCallback(async (reportId: string, content: string) => {
+    await commentsAPI.create(reportId, content);
+    await fetchComments(reportId);
+    // Increment comment count locally
+    setReports((prev) =>
+      prev.map((r) =>
+        r.id === reportId ? { ...r, totalComments: r.totalComments + 1 } : r
+      )
     );
+  }, [fetchComments]);
+
+  // ─── Admin — Employees ──────────────────────────────────────────────────
+  const [employees, setEmployees] = useState<EmployeeItem[]>([]);
+
+  const fetchEmployees = useCallback(async (params?: Record<string, any>) => {
+    try {
+      const res = await adminEmployeesAPI.getAll(params);
+      setEmployees(res.data.data);
+    } catch (err) {
+      console.error("Failed to fetch employees", err);
+    }
   }, []);
 
-  const deleteEmployee = useCallback((id: string) => {
-    setEmployees((prev) => prev.filter((emp) => emp.id !== id));
+  const deleteEmployee = useCallback(async (id: string) => {
+    try {
+      await adminEmployeesAPI.delete(id);
+      setEmployees((prev) => prev.filter((e) => e.id !== id));
+    } catch (err) {
+      console.error("Failed to delete employee", err);
+      throw err;
+    }
+  }, []);
+
+  const uploadEmployees = useCallback(async (file: File) => {
+    try {
+      await adminEmployeesAPI.upload(file);
+      await fetchEmployees();
+    } catch (err) {
+      console.error("Failed to upload employees", err);
+      throw err;
+    }
+  }, [fetchEmployees]);
+
+  // ─── Profile ────────────────────────────────────────────────────────────
+  const fetchEmployeeProfile = useCallback(async (employeeId: string) => {
+    try {
+      const res = await leaderboardAPI.getEmployeeProfile(employeeId);
+      const profile = res.data.data;
+      setCurrentProfile(profile);
+
+      // Merge profile reports into global reports list if not present
+      if (profile?.reports) {
+        setReports((prev) => {
+          const newReports = [...prev];
+          profile.reports.forEach((pr: any) => {
+            if (!newReports.find((r) => r.id === pr.id)) {
+              // Convert backend profile report to standard ReportItem if needed
+              // The profile reports might be summary-only, but let's try to normalize
+              newReports.push({
+                ...pr,
+                reportedEmployeeId: profile.user.employeeId,
+                reportedEmployeeName: profile.user.name,
+                totalUpvotes: pr.upvotes || 0,
+                totalDownvotes: pr.downvotes || 0,
+                totalComments: pr.commentCount || 0,
+                status: "APPROVED", // Since profile only shows approved
+              });
+            }
+          });
+          return newReports;
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch employee profile", err);
+      setCurrentProfile(null);
+    }
   }, []);
 
   const value: AppContextType = {
     currentUser,
-    adminSession,
+    isLoading,
     login,
-    adminLogin,
     logout,
     reports,
+    reportsMeta,
+    fetchReports,
     createReport,
-    updateReportStatus,
-    deleteReport,
-    votes,
     vote,
-    getVoteForReport,
-    comments,
-    addComment,
-    getCommentsForReport,
+    removeVote,
     approveReport,
     rejectReport,
+    comments,
+    fetchComments,
+    addComment,
     employees,
-    addEmployees,
-    updateEmployee,
+    fetchEmployees,
     deleteEmployee,
+    uploadEmployees,
+    currentProfile,
+    fetchEmployeeProfile,
   };
 
-  return React.createElement(
-    AppContext.Provider,
-    { value: value },
-    children
-  );
+  return React.createElement(AppContext.Provider, { value }, children);
 }
 
 export function useApp(): AppContextType {
   const context = useContext(AppContext);
-  if (!context) {
-    throw new Error("useApp must be used within AppProvider");
-  }
+  if (!context) throw new Error("useApp must be used within AppProvider");
   return context;
 }

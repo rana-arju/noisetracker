@@ -3,7 +3,6 @@
  */
 
 import { Report, LeaderboardEntry, SearchFilters, DashboardStats, Employee } from "@/lib/types";
-import { calculateLeaderboard } from "@/lib/mock-data";
 import { 
   formatDistanceToNow, 
   format, 
@@ -27,7 +26,8 @@ export function formatDateFull(date: Date): string {
 export function getSeverityColor(
   severity: string
 ): "bg-green-100 text-green-800" | "bg-yellow-100 text-yellow-800" | "bg-red-100 text-red-800" | "bg-gray-100 text-gray-800" {
-  switch (severity) {
+  const s = severity?.toLowerCase();
+  switch (s) {
     case "low":
       return "bg-green-100 text-green-800";
     case "medium":
@@ -42,12 +42,14 @@ export function getSeverityColor(
 export function getStatusColor(
   status: string
 ): "bg-blue-100 text-blue-800" | "bg-green-100 text-green-800" | "bg-red-100 text-red-800" | "bg-gray-100 text-gray-800" {
-  switch (status) {
+  const s = status?.toLowerCase();
+  switch (s) {
     case "pending":
       return "bg-blue-100 text-blue-800";
     case "approved":
       return "bg-green-100 text-green-800";
     case "deleted":
+    case "rejected":
       return "bg-red-100 text-red-800";
     default:
       return "bg-gray-100 text-gray-800";
@@ -71,16 +73,16 @@ export function filterAndSortReports(
   if (filters.query) {
     const query = filters.query.toLowerCase();
     filtered = filtered.filter(
-      (r) =>
-        r.employeeName.toLowerCase().includes(query) ||
-        r.description.toLowerCase().includes(query) ||
-        r.employeeId.toLowerCase().includes(query)
+      (r: any) =>
+        (r.reportedEmployeeName || r.employeeName || "").toLowerCase().includes(query) ||
+        (r.description || "").toLowerCase().includes(query) ||
+        (r.reportedEmployeeId || r.employeeId || "").toLowerCase().includes(query)
     );
   }
 
   // Filter by severity
   if (filters.severity && filters.severity.length > 0) {
-    filtered = filtered.filter((r) => filters.severity?.includes(r.severity));
+    filtered = filtered.filter((r) => filters.severity?.includes(r.severity as any));
   }
 
   // Filter by status
@@ -97,10 +99,10 @@ export function filterAndSortReports(
       );
       break;
     case "top-voted":
-      filtered.sort((a, b) => b.upvotes - a.upvotes);
+      filtered.sort((a: any, b: any) => (b.totalUpvotes || b.upvotes || 0) - (a.totalUpvotes || a.upvotes || 0));
       break;
     case "most-discussed":
-      filtered.sort((a, b) => b.commentCount - a.commentCount);
+      filtered.sort((a: any, b: any) => (b.totalComments || b.commentCount || 0) - (a.totalComments || a.commentCount || 0));
       break;
   }
 
@@ -135,6 +137,45 @@ export function getLeaderboard(
     );
   }
   return calculateLeaderboard(filteredReports);
+}
+
+export function calculateLeaderboard(reports: Report[]): LeaderboardEntry[] {
+  const employeeStats = new Map<
+    string,
+    { name: string; reportCount: number; upvotes: number }
+  >();
+
+  reports.forEach((report) => {
+    if (report.status !== "deleted") {
+      const key = report.reportedEmployeeId || (report as any).employeeId;
+      if (!key) return;
+
+      const current = employeeStats.get(key) || {
+        name: report.reportedEmployeeName || (report as any).employeeName || "অজ্ঞাত কর্মচারী",
+        reportCount: 0,
+        upvotes: 0,
+      };
+      current.reportCount += 1;
+      current.upvotes += (report.totalUpvotes || 0);
+      employeeStats.set(key, current);
+    }
+  });
+
+  const entries = Array.from(employeeStats.entries())
+    .map(([id, stats], index) => ({
+      employeeId: id,
+      employeeName: stats.name,
+      reportCount: stats.reportCount,
+      upvotes: stats.upvotes,
+      rank: index + 1,
+    }))
+    .sort((a, b) => b.upvotes - a.upvotes)
+    .map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+    }));
+
+  return entries;
 }
 
 export function getCurrentMonthRange() {
@@ -177,7 +218,7 @@ export function filterReportsByDateRange(
 }
 
 export function calculateEmployeeStats(employeeId: string, reports: Report[]) {
-  const employeeReports = reports.filter((r) => r.employeeId === employeeId);
+  const employeeReports = reports.filter((r: any) => (r.reportedEmployeeId || r.employeeId) === employeeId);
   const now = new Date();
   
   const thisMonthReports = employeeReports.filter((r) =>
@@ -215,8 +256,8 @@ export function calculateEmployeeStats(employeeId: string, reports: Report[]) {
     avgPerMonth: parseFloat(avgPerMonth.toFixed(1)),
     firstReported,
     lastReported,
-    totalUpvotes: employeeReports.reduce((sum, r) => sum + r.upvotes, 0),
-    totalComments: employeeReports.reduce((sum, r) => sum + r.commentCount, 0),
+    totalUpvotes: employeeReports.reduce((sum, r: any) => sum + (r.totalUpvotes || r.upvotes || 0), 0),
+    totalComments: employeeReports.reduce((sum, r: any) => sum + (r.totalComments || r.commentCount || 0), 0),
   };
 }
 
@@ -227,12 +268,16 @@ export function getTopLeaderboard(
   return getLeaderboard(reports).slice(0, count);
 }
 
-export function getDashboardStats(reports: Report[]) {
+export function getDashboardStats(reports: any[] | undefined | null) {
+  const safeReports = reports || [];
   return {
-    totalReports: reports.length,
-    pendingReports: reports.filter((r) => r.status === "pending").length,
-    approvedReports: reports.filter((r) => r.status === "approved").length,
-    deletedReports: reports.filter((r) => r.status === "deleted").length,
+    totalReports: safeReports.length,
+    pendingReports: safeReports.filter((r) => (r.status || "").toLowerCase() === "pending").length,
+    approvedReports: safeReports.filter((r) => (r.status || "").toLowerCase() === "approved").length,
+    deletedReports: safeReports.filter((r) => {
+      const s = (r.status || "").toLowerCase();
+      return s === "deleted" || s === "rejected";
+    }).length,
   };
 }
 
@@ -243,9 +288,9 @@ export function searchEmployeeByNameOrId(
   if (!query.trim()) return [];
   const lowerQuery = query.toLowerCase();
   return reports.filter(
-    (r) =>
-      r.employeeName.toLowerCase().includes(lowerQuery) ||
-      r.employeeId.toLowerCase().includes(lowerQuery)
+    (r: any) =>
+      (r.reportedEmployeeName || r.employeeName || "").toLowerCase().includes(lowerQuery) ||
+      (r.reportedEmployeeId || r.employeeId || "").toLowerCase().includes(lowerQuery)
   );
 }
 

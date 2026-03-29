@@ -11,21 +11,32 @@ interface VoteButtonsProps {
 }
 
 export function VoteButtons({ reportId, upvotes, downvotes }: VoteButtonsProps) {
-  const { vote, getVoteForReport } = useApp();
-  const currentVote = getVoteForReport(reportId);
+  const { vote, removeVote, reports } = useApp();
+  const report = reports.find(r => r.id === reportId);
+  const currentVote = report?.currentUserVote;
 
-  const handleUpvote = () => {
-    vote(reportId, currentVote?.voteType === "upvote" ? null : "upvote");
+  const handleUpvote = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentVote === "UPVOTE") {
+      await removeVote(reportId);
+    } else {
+      await vote(reportId, "UPVOTE");
+    }
   };
 
-  const handleDownvote = () => {
-    vote(reportId, currentVote?.voteType === "downvote" ? null : "downvote");
+  const handleDownvote = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentVote === "DOWNVOTE") {
+      await removeVote(reportId);
+    } else {
+      await vote(reportId, "DOWNVOTE");
+    }
   };
 
   return (
     <div className="flex items-center gap-2">
       <Button
-        variant={currentVote?.voteType === "upvote" ? "default" : "ghost"}
+        variant={currentVote === "UPVOTE" ? "default" : "ghost"}
         size="sm"
         onClick={handleUpvote}
         className="gap-1"
@@ -34,7 +45,7 @@ export function VoteButtons({ reportId, upvotes, downvotes }: VoteButtonsProps) 
         <span className="text-xs">{upvotes}</span>
       </Button>
       <Button
-        variant={currentVote?.voteType === "downvote" ? "default" : "ghost"}
+        variant={currentVote === "DOWNVOTE" ? "default" : "ghost"}
         size="sm"
         onClick={handleDownvote}
         className="gap-1"

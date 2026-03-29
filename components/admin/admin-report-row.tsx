@@ -24,28 +24,28 @@ export function AdminReportRow({
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         {/* Report Info */}
         <div className="flex-1">
-          <p className="font-semibold">{report.employeeName}</p>
+          <p className="font-semibold">{report.reportedEmployeeName || "অজ্ঞাত কর্মচারী"}</p>
           <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
-            {report.description}
+            {report.description || "কোনো বিবরণ নেই"}
           </p>
           <div className="flex gap-2 mt-3">
-            <StatusBadge status={report.status} />
-            <SeverityBadge severity={report.severity} />
+            <StatusBadge status={report.status as any} />
+            <SeverityBadge severity={report.severity as any} />
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            {formatDate(report.createdAt)}
+            {formatDate(new Date(report.createdAt))}
           </p>
         </div>
 
         {/* Stats */}
         <div className="flex gap-6 text-center sm:text-right">
           <div>
-            <p className="text-lg font-bold text-primary">{report.upvotes}</p>
-            <p className="text-xs text-muted-foreground">আপভোট</p>
+            <p className="text-lg font-bold text-primary">{report.totalUpvotes || 0}</p>
+            <p className="text-xs text-muted-foreground">সহমত</p>
           </div>
           <div>
-            <p className="text-lg font-bold">{report.commentCount}</p>
-            <p className="text-xs text-muted-foreground">কমেন্ট</p>
+            <p className="text-lg font-bold">{report.totalComments || 0}</p>
+            <p className="text-xs text-muted-foreground">আলোচনা</p>
           </div>
         </div>
 
@@ -60,7 +60,7 @@ export function AdminReportRow({
                 <span className="hidden sm:inline">বিস্তারিত</span>
               </Button>
             </Link>
-            {report.status === "pending" && (
+            {report.status?.toLowerCase() === "pending" && (
               <>
                 <Button
                   onClick={onApprove}

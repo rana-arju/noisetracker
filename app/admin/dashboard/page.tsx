@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { AdminNavigation } from "@/components/admin/admin-navigation";
 import { AdminStatsGrid } from "@/components/admin/admin-stats-grid";
 import { useApp } from "@/lib/store";
@@ -8,15 +9,23 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function AdminDashboard() {
-  const { reports, employees, adminSession } = useApp();
+  const { reports, employees, currentUser, fetchReports, fetchEmployees } = useApp();
   const stats = getDashboardStats(reports);
 
-  if (!adminSession) {
+  // Fetch data on mount
+  useEffect(() => {
+    fetchReports();
+    fetchEmployees();
+  }, [fetchReports, fetchEmployees]);
+
+  const isAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "SUPERADMIN";
+
+  if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">আপনাকে অবশ্যই অ্যাডমিন হিসেবে লগইন করতে হবে</p>
-          <Link href="/admin/login">
+          <Link href="/auth/login">
             <Button>অ্যাডমিন লগইনে যান</Button>
           </Link>
         </div>

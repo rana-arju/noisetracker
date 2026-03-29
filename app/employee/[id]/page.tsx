@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Navbar } from "@/components/shared/navbar";
 import { Footer } from "@/components/shared/footer";
@@ -41,19 +41,45 @@ import {
 export default function EmployeeProfilePage() {
   const params = useParams();
   const id = params.id as string;
-  const { reports, employees } = useApp();
-  
-  const employee = employees.find((e: any) => e.id === id || e.employeeId === id);
-  const employeeId = employee?.id || id;
+  const { reports, employees, currentProfile, fetchEmployeeProfile } = useApp();
+  const [isLocalLoading, setIsLocalLoading] = useState(true);
+
+  // Fetch profile on mount
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLocalLoading(true);
+      await fetchEmployeeProfile(id);
+      setIsLocalLoading(false);
+    };
+    loadData();
+  }, [id, fetchEmployeeProfile]);
+
+  const employee = currentProfile?.user || employees.find((e: any) => e.id === id || e.employeeId === id);
+  const employeeId = employee?.employeeId || id;
   const employeeName = employee?.name || "অজানা কর্মচারী";
   
   const [timeFilter, setTimeFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
 
-  const stats = useMemo(() => calculateEmployeeStats(employeeId, reports), [employeeId, reports]);
+  const stats = useMemo(() => {
+    if (currentProfile?.stats && !reports.some(r => r.reportedEmployeeId === employeeId)) {
+        // Use backend stats if reports aren't all in store yet
+        return {
+            lifetimeCount: currentProfile.stats.totalReports,
+            thisMonthCount: currentProfile.stats.totalReports, // approximation
+            last7DaysCount: 0,
+            avgPerMonth: 0,
+            firstReported: null,
+            lastReported: null,
+            totalUpvotes: 0,
+            totalComments: 0
+        };
+    }
+    return calculateEmployeeStats(employeeId, reports);
+  }, [employeeId, reports, currentProfile]);
   
   const filteredReports = useMemo(() => {
-    let list = reports.filter(r => r.employeeId === employeeId);
+    let list = reports.filter(r => r.reportedEmployeeId === employeeId);
     
     // Time filter
     const now = new Date();
@@ -67,13 +93,27 @@ export default function EmployeeProfilePage() {
     
     // Severity filter
     if (severityFilter !== "all") {
-      list = list.filter(r => r.severity === severityFilter);
+      list = list.filter(r => r.severity?.toLowerCase() === severityFilter.toLowerCase());
     }
     
     return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [employeeId, reports, timeFilter, severityFilter]);
 
-  if (!employee && !reports.some(r => r.employeeId === id)) {
+  if (isLocalLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1 container mx-auto px-4 py-8 text-center">
+          <div className="animate-pulse space-y-4">
+             <div className="h-12 w-48 bg-muted rounded mx-auto" />
+             <div className="h-40 w-full bg-muted rounded" />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!employee && filteredReports.length === 0) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -114,8 +154,8 @@ export default function EmployeeProfilePage() {
                 )}
               </div>
               <p className="text-muted-foreground flex items-center gap-4 text-sm">
-                <span className="flex items-center gap-1.5"><History className="h-4 w-4" /> প্রথম রিপোর্ট: {stats.firstReported ? formatDateFull(stats.firstReported) : "নেই"}</span>
-                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> শেষ রিপোর্ট: {stats.lastReported ? formatDateFull(stats.lastReported) : "নেই"}</span>
+                <span className="flex items-center gap-1.5"><History className="h-4 w-4" /> প্রথম রিপোর্ট: {stats.firstReported ? formatDateFull(new Date(stats.firstReported)) : "নেই"}</span>
+                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> শেষ রিপোর্ট: {stats.lastReported ? formatDateFull(new Date(stats.lastReported)) : "নেই"}</span>
               </p>
             </div>
             <div className="flex gap-4 w-full md:w-auto border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800 pt-6 md:pt-0 md:pl-8">

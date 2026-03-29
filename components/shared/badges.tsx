@@ -12,27 +12,40 @@ interface SeverityBadgeProps {
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-  const labels = {
+  if (!status || status === ("undefined" as any)) return null;
+  
+  const labels: Record<string, string> = {
     pending: "পেন্ডিং",
     approved: "অনুমোদিত",
     deleted: "সমাধান করা",
+    rejected: "প্রত্যাখ্যাত",
   };
+
+  const label = labels[status.toLowerCase()];
+  if (!label) return null;
+
   return (
     <Badge variant="outline" className={getStatusColor(status)}>
-      {labels[status]}
+      {label}
     </Badge>
   );
 }
 
 export function SeverityBadge({ severity }: SeverityBadgeProps) {
-  const labels = {
+  if (!severity || severity === ("undefined" as any)) return null;
+
+  const labels: Record<string, string> = {
     low: "স্বল্প",
     medium: "মাঝারি",
     high: "উচ্চ",
   };
+
+  const label = labels[severity.toLowerCase()];
+  if (!label) return null;
+
   return (
     <Badge variant="outline" className={getSeverityColor(severity)}>
-      {labels[severity]}
+      {label}
     </Badge>
   );
 }

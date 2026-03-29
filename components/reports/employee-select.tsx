@@ -17,7 +17,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { mockEmployees } from "@/lib/mock-data";
+import { useApp } from "@/lib/store";
+import { useEffect } from "react";
 
 interface EmployeeSelectProps {
   value: string;
@@ -26,9 +27,16 @@ interface EmployeeSelectProps {
 }
 
 export function EmployeeSelect({ value, onValueChange, error }: EmployeeSelectProps) {
+  const { employees, fetchEmployees } = useApp();
   const [open, setOpen] = React.useState(false);
 
-  const selectedEmployee = mockEmployees.find((emp) => emp.id === value);
+  useEffect(() => {
+    if (employees.length === 0) {
+      fetchEmployees();
+    }
+  }, [employees.length, fetchEmployees]);
+
+  const selectedEmployee = employees.find((emp) => emp.id === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -55,7 +63,7 @@ export function EmployeeSelect({ value, onValueChange, error }: EmployeeSelectPr
           <CommandList>
             <CommandEmpty>কোনো কর্মচারী খুঁজে পাওয়া যায়নি।</CommandEmpty>
             <CommandGroup>
-              {mockEmployees.map((emp) => (
+              {employees.map((emp) => (
                 <CommandItem
                   key={emp.id}
                   value={`${emp.name} ${emp.employeeId} ${emp.id}`}

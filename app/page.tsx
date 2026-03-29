@@ -11,10 +11,10 @@ import { useApp } from "@/lib/store";
 import { getDashboardStats, getTopLeaderboard, getPaginatedReports, filterAndSortReports } from "@/lib/helpers";
 import { SearchFilters } from "@/lib/types";
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 export default function HomePage() {
-  const { reports } = useApp();
+  const { reports, fetchReports, isLoading } = useApp();
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<SearchFilters>({
     query: "",
@@ -23,15 +23,23 @@ export default function HomePage() {
     page: 1,
   });
 
-  const stats = getDashboardStats(reports);
-  const topLeaderboard = getTopLeaderboard(reports, 5);
+  // Fetch reports on mount
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  const stats = useMemo(() => getDashboardStats(reports), [reports]);
+  const topLeaderboard = useMemo(() => getTopLeaderboard(reports, 5), [reports]);
   
   const filteredReports = useMemo(() => {
-    const activeReports = reports.filter(r => r.status !== "deleted");
+    const activeReports = reports.filter(r => r.status?.toLowerCase() !== "deleted");
     return filterAndSortReports(activeReports, filters);
   }, [reports, filters]);
   
-  const paginatedReports = getPaginatedReports(filteredReports, page, 5);
+  const paginatedReports = useMemo(() => 
+    getPaginatedReports(filteredReports, page, 5),
+    [filteredReports, page]
+  );
 
   return (
     <div className="min-h-screen bg-background">

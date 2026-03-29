@@ -33,34 +33,26 @@ export interface EmployeeUploadPreview extends Partial<Employee> {
 
 export interface Report {
   id: string;
-  reporterId: string;
-  reporterName: string;
-  employeeId: string;
-  employeeName: string;
-  description: string;
-  severity: SeverityLevel;
-  status: ReportStatus;
-  createdAt: Date;
-  updatedAt: Date;
-  upvotes: number;
-  downvotes: number;
-  commentCount: number;
-}
-
-export interface Vote {
-  reportId: string;
-  userId: string;
-  voteType: "upvote" | "downvote" | null;
+  reportedEmployeeName: string;
+  reportedEmployeeId?: string | null;
+  description?: string | null;
+  severity: string;
+  status: string;
+  anonymousReporterName: string;
+  totalUpvotes: number;
+  totalDownvotes: number;
+  totalComments: number;
+  currentUserVote?: "UPVOTE" | "DOWNVOTE" | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Comment {
   id: string;
   reportId: string;
-  userId: string;
-  userName: string;
   content: string;
-  createdAt: Date;
-  upvotes?: number;
+  anonymousCommenterName: string;
+  createdAt: string;
 }
 
 export interface AdminSession {

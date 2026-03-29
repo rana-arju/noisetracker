@@ -18,7 +18,7 @@ import { Search } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminReportsPage() {
-  const { reports, adminSession, approveReport, rejectReport } = useApp();
+  const { reports, currentUser, fetchReports, approveReport, rejectReport } = useApp();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "deleted">("pending");
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -26,33 +26,35 @@ export default function AdminReportsPage() {
     employeeName: string;
   } | null>(null);
 
-  if (!adminSession) {
+  const isAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "SUPERADMIN";
+
+  // Filter and search
+  const filteredReports = useMemo(() => {
+    return reports.filter((report) => {
+      const matchesSearch =
+        (report.reportedEmployeeName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (report.description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (report.reportedEmployeeId || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "all" || report.status?.toLowerCase() === statusFilter.toLowerCase();
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [reports, searchQuery, statusFilter]);
+
+  if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">আপনাকে অবশ্যই অ্যাডমিন হিসেবে লগইন করতে হবে</p>
-          <Link href="/admin/login">
+          <Link href="/auth/login">
             <Button>অ্যাডমিন লগইনে যান</Button>
           </Link>
         </div>
       </div>
     );
   }
-
-  // Filter and search
-  const filteredReports = useMemo(() => {
-    return reports.filter((report) => {
-      const matchesSearch =
-        report.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.employeeId.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesStatus =
-        statusFilter === "all" || report.status === statusFilter;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [reports, searchQuery, statusFilter]);
 
   const handleApprove = (reportId: string) => {
     approveReport(reportId);
@@ -129,7 +131,7 @@ export default function AdminReportsPage() {
                     report={report}
                     onApprove={() => handleApprove(report.id)}
                     onDelete={() =>
-                      handleDeleteClick(report.id, report.employeeName)
+                      handleDeleteClick(report.id, report.reportedEmployeeName)
                     }
                   />
                 ))}

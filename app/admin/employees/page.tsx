@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AdminNavigation } from "@/components/admin/admin-navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,16 +46,21 @@ import {
 import { toast } from "sonner";
 
 export default function AdminEmployeesPage() {
-  const { employees, reports, deleteEmployee } = useApp();
+  const { employees, reports, fetchEmployees, deleteEmployee } = useApp();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
+  // Fetch employees on mount
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
+
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => 
-      emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.employeeId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.designation?.toLowerCase().includes(searchQuery.toLowerCase())
+      (emp.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (emp.employeeId || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (emp.designation || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [employees, searchQuery]);
 
@@ -76,7 +81,7 @@ export default function AdminEmployeesPage() {
   };
 
   const getReportCount = (empId: string) => {
-    return reports.filter(r => r.employeeId === empId).length;
+    return reports.filter(r => (r.reportedEmployeeId || (r as any).employeeId) === empId).length;
   };
 
   return (
@@ -149,7 +154,7 @@ export default function AdminEmployeesPage() {
                         </span>
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
-                        {formatDate(emp.createdAt)}
+                        {formatDate(new Date(emp.createdAt))}
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>

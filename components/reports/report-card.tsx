@@ -30,36 +30,38 @@ export function ReportCard({ report }: ReportCardProps) {
                 className="font-semibold text-foreground hover:text-primary transition inline-block"
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push(`/employee/${report.employeeId}`);
+                  router.push(`/employee/${report.reportedEmployeeId || report.id}`);
                 }}
               >
-                {report.employeeName}
+                {report.reportedEmployeeName || "অজ্ঞাত কর্মচারী"}
               </p>
               <p className="text-xs text-muted-foreground">
-                {formatDate(report.createdAt)} রিপোর্ট করা হয়েছে
+                {formatDate(new Date(report.createdAt))} রিপোর্ট করা হয়েছে
               </p>
             </div>
             <div className="flex gap-2">
-              <StatusBadge status={report.status} />
-              <SeverityBadge severity={report.severity} />
+              <StatusBadge status={report.status as any} />
+              <SeverityBadge severity={report.severity as any} />
             </div>
           </div>
 
           {/* Description */}
-          <p className="text-sm text-foreground line-clamp-2">{report.description}</p>
+          <p className="text-sm text-foreground line-clamp-2">
+            {report.description || "কোনো বিবরণ প্রদান করা হয়নি"}
+          </p>
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-2 border-t border-border">
             <div className="flex items-center gap-4">
               <VoteButtons
                 reportId={report.id}
-                upvotes={report.upvotes}
-                downvotes={report.downvotes}
+                upvotes={report.totalUpvotes}
+                downvotes={report.totalDownvotes}
               />
             </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <MessageCircle className="h-4 w-4" />
-              <span>{report.commentCount}</span>
+              <span>{report.totalComments}</span>
             </div>
           </div>
         </div>

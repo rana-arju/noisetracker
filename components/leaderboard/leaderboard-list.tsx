@@ -54,7 +54,7 @@ export function LeaderboardCard({ entry }: LeaderboardCardProps) {
                 <RankBadge rank={entry.rank} />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-slate-800 dark:text-slate-200">{entry.employeeName}</p>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200">{entry.employeeName || "অজ্ঞাত কর্মচারী"}</p>
                     {entry.rank <= 3 && (
                       <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 dark:bg-slate-800 rounded uppercase font-bold tracking-wider text-slate-600 dark:text-slate-400">
                         সতর্কতা লেভেল {entry.rank}
@@ -62,11 +62,11 @@ export function LeaderboardCard({ entry }: LeaderboardCardProps) {
                     )}
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {entry.reportCount} টি শব্দ অভিযোগ পাওয়া গেছে
+                    {entry.reportCount || 0} টি শব্দ অভিযোগ পাওয়া গেছে
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-slate-700 dark:text-slate-300">{entry.upvotes}</p>
+                  <p className="font-bold text-slate-700 dark:text-slate-300">{entry.upvotes || 0}</p>
                   <p className="text-[10px] text-muted-foreground uppercase font-medium">সহমত</p>
                 </div>
               </div>

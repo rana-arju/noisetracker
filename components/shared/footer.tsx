@@ -25,17 +25,26 @@ export function Footer() {
             <h3 className="font-semibold mb-3">দ্রুত লিঙ্কগুলি</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/" className="text-muted-foreground hover:text-primary transition">
+                <Link
+                  href="/"
+                  className="text-muted-foreground hover:text-primary transition"
+                >
                   হোম
                 </Link>
               </li>
               <li>
-                <Link href="/leaderboard" className="text-muted-foreground hover:text-primary transition">
+                <Link
+                  href="/leaderboard"
+                  className="text-muted-foreground hover:text-primary transition"
+                >
                   লিডারবোর্ড
                 </Link>
               </li>
               <li>
-                <Link href="/create-report" className="text-muted-foreground hover:text-primary transition">
+                <Link
+                  href="/create-report"
+                  className="text-muted-foreground hover:text-primary transition"
+                >
                   রিপোর্ট
                 </Link>
               </li>
@@ -47,7 +56,10 @@ export function Footer() {
             <h3 className="font-semibold mb-3">অ্যাডমিন</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/admin/login" className="text-muted-foreground hover:text-primary transition">
+                <Link
+                  href="/admin/dashboard"
+                  className="text-muted-foreground hover:text-primary transition"
+                >
                   অ্যাডমিন পোর্টাল
                 </Link>
               </li>
@@ -56,7 +68,10 @@ export function Footer() {
         </div>
 
         <div className="border-t border-border pt-6 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} এসএম টেকনোলজি। সর্বস্বত্ব সংরক্ষিত।</p>
+          <p>
+            &copy; {new Date().getFullYear()} এসএম টেকনোলজি। সর্বস্বত্ব
+            সংরক্ষিত।
+          </p>
         </div>
       </div>
     </footer>

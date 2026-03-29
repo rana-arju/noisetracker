@@ -17,20 +17,19 @@ import {
 } from "@/components/ui/select";
 import { EmployeeSelect } from "@/components/reports/employee-select";
 import { useApp } from "@/lib/store";
-import { mockEmployees } from "@/lib/mock-data";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function CreateReportPage() {
   const router = useRouter();
-  const { currentUser, createReport } = useApp();
+  const { currentUser, createReport, employees, fetchEmployees } = useApp();
   const [employeeId, setEmployeeId] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<"low" | "medium" | "high">("medium");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const selectedEmployee = mockEmployees.find((e) => e.id === employeeId);
+  const selectedEmployee = employees.find((e) => e.id === employeeId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,21 +47,18 @@ export default function CreateReportPage() {
 
     setIsSubmitting(true);
 
-    const newReport = {
-      reporterId: currentUser?.id || "USER-GUEST",
-      reporterName: currentUser?.name || "অতিথি",
-      employeeId: employeeId,
-      employeeName: selectedEmployee?.name || "Unknown",
-      description: description.trim(),
-      severity: severity,
-      status: "pending" as const,
-      upvotes: 0,
-      downvotes: 0,
-      commentCount: 0,
-    };
-
-    createReport(newReport);
-    router.push("/");
+    try {
+      await createReport({
+        reportedEmployeeName: selectedEmployee?.name || "Unknown",
+        reportedEmployeeId: employeeId,
+        description: description.trim(),
+        severity: severity.toUpperCase(),
+      });
+      router.push("/");
+    } catch (err) {
+      setError("রিপোর্ট সাবমিট করতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
+      setIsSubmitting(false);
+    }
   };
 
   return (
