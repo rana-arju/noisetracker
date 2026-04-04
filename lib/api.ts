@@ -46,6 +46,8 @@ export const authAPI = {
 
   changePassword: (oldPassword: string, newPassword: string) =>
     apiClient.post("/auth/change-password", { oldPassword, newPassword }),
+
+  updateMe: (data: any) => apiClient.patch("/admin/employees/me", data),
 };
 
 // ─── Reports ───────────────────────────────────────────────────────────────

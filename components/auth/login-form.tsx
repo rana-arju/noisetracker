@@ -101,13 +101,6 @@ export function LoginForm() {
             অ্যাকাউন্ট না থাকলে অ্যাডমিনের সাথে যোগাযোগ করুন
           </p>
         </div>
-
-        <div className="border-t border-border pt-4">
-          <p className="text-xs text-muted-foreground mb-2">ডেমো ক্রেডেনশিয়াল:</p>
-          <p className="text-xs font-mono">কর্মী: 11612 / emp123</p>
-          <p className="text-xs font-mono">অ্যাডমিন: 10002 / admin123</p>
-          <p className="text-xs font-mono">সুপার অ্যাডমিন: 10001 / superadmin123</p>
-        </div>
       </div>
     </Card>
   );

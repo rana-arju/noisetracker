@@ -26,6 +26,7 @@ export interface AuthUser {
   employeeId: string;
   name?: string | null;
   email?: string | null;
+  phone?: string | null;
   role: UserRole;
 }
 
@@ -112,6 +113,7 @@ interface AppContextType {
   // Profile
   currentProfile: any | null;
   fetchEmployeeProfile: (employeeId: string) => Promise<void>;
+  updateMe: (data: any) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -401,6 +403,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateMe = useCallback(async (data: any) => {
+    try {
+      const res = await authAPI.updateMe(data);
+      setCurrentUser(res.data.data);
+      // Update local storage if needed
+      localStorage.setItem("nt_user", JSON.stringify(res.data.data));
+    } catch (err) {
+      console.error("Failed to update profile", err);
+      throw err;
+    }
+  }, []);
+
   const value: AppContextType = {
     currentUser,
     isLoading,
@@ -426,6 +440,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     confirmUploadEmployees,
     currentProfile,
     fetchEmployeeProfile,
+    updateMe,
   };
 
   return React.createElement(AppContext.Provider, { value }, children);

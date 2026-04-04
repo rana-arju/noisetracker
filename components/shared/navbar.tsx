@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Home, AlertTriangle, FileText, LogIn, LogOut, X } from "lucide-react";
+import { Menu, Home, AlertTriangle, FileText, LogIn, LogOut, X, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useApp } from "@/lib/store";
 import { useState } from "react";
 
 export function Navbar() {
-  const { currentUser, adminSession, logout } = useApp();
+  const { currentUser, logout } = useApp();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = () => {
@@ -38,6 +38,16 @@ export function Navbar() {
           <Link href="/create-report" className="text-sm hover:text-primary transition">
             রিপোর্ট
           </Link>
+          {currentUser && (
+            <Link href="/employee/settings" className="text-sm hover:text-primary transition">
+              সেটিংস
+            </Link>
+          )}
+          {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPERADMIN") && (
+            <Link href="/admin/dashboard" className="text-sm hover:text-primary transition font-semibold text-primary">
+              অ্যাডমিন
+            </Link>
+          )}
         </div>
 
         {/* Desktop User Menu */}
@@ -98,6 +108,22 @@ export function Navbar() {
                     label="রিপোর্ট" 
                     onClick={() => setIsOpen(false)} 
                   />
+                  {currentUser && (
+                    <MobileNavLink 
+                      href="/employee/settings" 
+                      icon={<User className="h-5 w-5" />} 
+                      label="সেটিংস" 
+                      onClick={() => setIsOpen(false)} 
+                    />
+                  )}
+                  {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPERADMIN") && (
+                    <MobileNavLink 
+                      href="/admin/dashboard" 
+                      icon={<FileText className="h-5 w-5" />} 
+                      label="অ্যাডমিন ড্যাশবোর্ড" 
+                      onClick={() => setIsOpen(false)} 
+                    />
+                  )}
                 </div>
 
                 <div className="mt-auto space-y-4">
@@ -106,10 +132,10 @@ export function Navbar() {
                     <div className="space-y-4">
                       <div className="flex items-center gap-3 px-3">
                         <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-semibold">
-                          {currentUser.name.charAt(0)}
+                          {(currentUser.name || 'U').charAt(0)}
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-semibold">{currentUser.name}</p>
+                          <p className="text-sm font-semibold">{currentUser.name || 'User'}</p>
                           <p className="text-xs text-muted-foreground">{currentUser.email}</p>
                         </div>
                       </div>

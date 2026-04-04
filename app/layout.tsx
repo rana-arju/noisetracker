@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AppProvider } from '@/lib/store'
+import { Toaster } from 'react-hot-toast'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -40,6 +41,17 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <AppProvider>
           {children}
+          <Toaster 
+            position="top-center" 
+            toastOptions={{
+              error: {
+                style: {
+                  background: '#dc2626',
+                  color: '#fff',
+                },
+              },
+            }}
+          />
         </AppProvider>
         <Analytics />
       </body>
