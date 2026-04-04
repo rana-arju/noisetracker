@@ -72,6 +72,26 @@ export function Footer() {
             &copy; {new Date().getFullYear()} এসএম টেকনোলজি। সর্বস্বত্ব
             সংরক্ষিত।
           </p>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+            <span>Developed by <Link href="https://rana-arju.vercel.app" target="_blank" className="font-semibold text-foreground hover:text-primary transition">Mohammad Rana Arju</Link></span>
+            <span className="hidden sm:inline text-border">|</span>
+            <div className="flex items-center gap-4">
+              <Link
+                href="https://github.com/rana-arju"
+                target="_blank"
+                className="hover:text-primary underline underline-offset-4 transition"
+              >
+                GitHub
+              </Link>
+              <Link
+                href="https://rana-arju.vercel.app"
+                target="_blank"
+                className="hover:text-primary underline underline-offset-4 transition"
+              >
+                Portfolio
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </footer>
